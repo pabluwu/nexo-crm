@@ -23,4 +23,4 @@ jobs:
           script: |
             cd ${{ secrets.PROJECT_PATH }}
             git pull origin main
-            docker-compose up --build -d backend
+            docker compose up -d --build backend
