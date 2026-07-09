@@ -1,0 +1,16 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Función auxiliar para verificar si el usuario es ejecutivo o admin corporativo
+    function isStaff() {
+      return request.auth != null && 
+        (request.auth.token.role == 'executive' || request.auth.token.role == 'admin');
+    }
+
+    // Proteger todas las carpetas y archivos organizados por RUT de cliente
+    match /clientes/{clientRut}/{allPaths=**} {
+      allow read, write: if isStaff();
+    }
+  }
+}

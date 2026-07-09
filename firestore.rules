@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Función auxiliar para verificar si el usuario es ejecutivo o admin corporativo
+    function isStaff() {
+      return request.auth != null && 
+        (request.auth.token.role == 'executive' || request.auth.token.role == 'admin');
+    }
+
+    // Reglas para la colección principal clients
+    match /clients/{clientRut} {
+      allow read, write: if isStaff();
+      
+      // Reglas para las subcolecciones de evaluaciones de crédito
+      match /bank_evaluations/{bankId} {
+        allow read, write: if isStaff();
+      }
+      
+      match /mutuaria_evaluations/{mutuariaId} {
+        allow read, write: if isStaff();
+      }
+      
+      // Reglas para la subcolección de bitácora/hitos
+      match /milestones/{milestoneId} {
+        allow read, write: if isStaff();
+      }
+    }
+  }
+}
