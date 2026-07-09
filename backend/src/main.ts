@@ -10,7 +10,7 @@ async function bootstrap() {
   
   // Habilitar CORS para que el frontend (puerto 5173) pueda consumir la API
   app.enableCors({
-    origin: 'http://test-nexo.acuerdalo.cl', // Permitir todos los orígenes en local
+    origin: 'https://test-nexo.acuerdalo.cl', // Permitir todos los orígenes en local
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
