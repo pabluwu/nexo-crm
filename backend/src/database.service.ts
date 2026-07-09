@@ -3,7 +3,7 @@ import * as mysql from 'mysql2/promise';
 
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
-  private pool: mysql.Pool;
+  private pool: mysql.Pool; 
 
   async onModuleInit() {
     console.log('Initializing MariaDB Connection Pool...');
