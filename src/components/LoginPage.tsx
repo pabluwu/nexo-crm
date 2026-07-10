@@ -35,6 +35,7 @@ export const LoginPage: React.FC = () => {
 
   useEffect(() => {
     // 1. Verificar si hay un Client ID válido configurado
+    console.log(googleClientId)
     if (googleClientId && googleClientId !== 'your-google-client-id.apps.googleusercontent.com') {
       setIsRealAuthAvailable(true);
     }
