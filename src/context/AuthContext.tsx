@@ -93,8 +93,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-  console.log(googleClientId)
+  const [googleClientId, setGoogleClientId] = useState('');
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/config`);
+        if (res.ok) {
+          const data = await res.json();
+          setGoogleClientId(data.googleClientId);
+        }
+      } catch (err) {
+        console.error('Error al cargar config de Google OAuth:', err);
+      }
+    };
+    fetchConfig();
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{

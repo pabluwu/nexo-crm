@@ -18,6 +18,15 @@ export class AppController {
   ) {}
 
 
+  // Obtener configuraciones del cliente dinámicamente en producción
+  @Get('config')
+  getConfig() {
+    return {
+      googleClientId: process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '',
+    };
+  }
+
+
   // 1. Obtener listado de clientes
   @Get('clients')
   async getClients(@Headers('x-user-email') userEmail: string) {
