@@ -3,7 +3,7 @@ import { AppService } from './app.service';
 import { GoogleService } from './google.service';
 import { Response } from 'express';
 
-@Controller('auth')
+@Controller('api/auth')
 export class AuthController {
   constructor(
     private readonly appService: AppService,
@@ -20,7 +20,7 @@ export class AuthController {
     }
 
     try {
-      const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/auth/google/callback';
+      const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/google/callback';
       const tokens = await this.googleService.getTokensFromCodeWithUri(code, redirectUri);
       const accessToken = tokens.access_token || null;
       const refreshToken = tokens.refresh_token || null;

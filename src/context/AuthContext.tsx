@@ -15,6 +15,7 @@ interface AuthContextType {
   logout: () => void;
   switchRole: (newRole: 'Broker' | 'Administrador') => Promise<void>;
   googleClientId: string;
+  googleRedirectUri: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -94,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const [googleClientId, setGoogleClientId] = useState('');
+  const [googleRedirectUri, setGoogleRedirectUri] = useState('');
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -102,6 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (res.ok) {
           const data = await res.json();
           setGoogleClientId(data.googleClientId);
+          setGoogleRedirectUri(data.googleRedirectUri);
         }
       } catch (err) {
         console.error('Error al cargar config de Google OAuth:', err);
@@ -119,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         switchRole,
         googleClientId,
+        googleRedirectUri,
       }}
     >
       {children}

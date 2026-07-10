@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Building2, ShieldAlert, LogIn, AlertCircle } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { login, googleClientId, user } = useAuth();
+  const { login, googleClientId, user, googleRedirectUri } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isRealAuthAvailable, setIsRealAuthAvailable] = useState(false);
@@ -69,7 +69,7 @@ export const LoginPage: React.FC = () => {
     setError(null);
     setLoading(true);
 
-    const redirectUri = 'https://api-michelle.acuerdalo.cl/auth/google/callback';
+    const redirectUri = googleRedirectUri || 'http://localhost:3000/api/auth/google/callback';
     const scopes = [
       'openid',
       'email',
