@@ -254,3 +254,26 @@ body {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Google Drive Sync Indicator */
+a[href*="drive.google.com"] {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+a[href*="drive.google.com"]::before {
+  content: "Google Drive";
+  display: inline-block;
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-right: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useClientPipeline } from '../context/ClientPipelineContext';
+import { useAuth } from '../context/AuthContext';
 import { addMilestone } from '../services/db';
 import { MessageSquare, Calendar, User, CornerDownRight, Plus, AlertCircle } from 'lucide-react';
 
 export const MilestoneBitacora: React.FC = () => {
   const { client, clientRut, milestones } = useClientPipeline();
+  const { user: authUser } = useAuth();
   const [observation, setObservation] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -14,17 +16,18 @@ export const MilestoneBitacora: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!observation.trim()) return;
+    if (!authUser) return;
 
     setSubmitting(true);
     setError(null);
 
     try {
-      // Registrar hito
+      // Registrar hito con datos reales del usuario autenticado
       await addMilestone(
         clientRut,
         observation.trim(),
-        'Ejecutivo Inmobiliario', // Valor mockeado, idealmente vendría de Auth Context
-        'mock-exec-uid',
+        authUser.name,
+        authUser.email,
         client.pipelineState
       );
       setObservation('');
@@ -35,6 +38,7 @@ export const MilestoneBitacora: React.FC = () => {
       setSubmitting(false);
     }
   };
+
 
   return (
     <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100/80 flex flex-col gap-6 mt-6">
@@ -48,37 +52,40 @@ export const MilestoneBitacora: React.FC = () => {
         </p>
       </div>
 
-      {/* Formulario de registro */}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        {error && (
-          <div className="text-xs text-rose-600 bg-rose-50 border border-rose-100 p-3 rounded-xl flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            <span>{error}</span>
-          </div>
-        )}
+      {/* Formulario de registro (Sólo Administrador) */}
+      {authUser && authUser.role === 'Administrador' && (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          {error && (
+            <div className="text-xs text-rose-600 bg-rose-50 border border-rose-100 p-3 rounded-xl flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              <span>{error}</span>
+            </div>
+          )}
 
-        <div className="relative">
-          <textarea
-            rows={3}
-            placeholder="Registrar nueva llamada con ejecutivo del banco, consulta externa, o nota del proceso..."
-            value={observation}
-            onChange={(e) => setObservation(e.target.value)}
-            disabled={submitting}
-            className="w-full bg-slate-50 border border-slate-200/80 text-sm text-slate-700 rounded-2xl p-4 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-100 placeholder:text-slate-400 transition-all resize-none"
-          />
-          <button
-            type="submit"
-            disabled={!observation.trim() || submitting}
-            className={`absolute bottom-4 right-4 p-2 rounded-xl transition-all shadow-sm ${
-              observation.trim() && !submitting
-                ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md cursor-pointer'
-                : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-            }`}
-          >
-            <Plus className="w-4.5 h-4.5" />
-          </button>
-        </div>
-      </form>
+          <div className="relative">
+            <textarea
+              rows={3}
+              placeholder="Registrar nueva llamada con ejecutivo del banco, consulta externa, o nota del proceso..."
+              value={observation}
+              onChange={(e) => setObservation(e.target.value)}
+              disabled={submitting}
+              className="w-full bg-slate-50 border border-slate-200/80 text-sm text-slate-700 rounded-2xl p-4 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-100 placeholder:text-slate-400 transition-all resize-none"
+            />
+            <button
+              type="submit"
+              disabled={!observation.trim() || submitting}
+              className={`absolute bottom-4 right-4 p-2 rounded-xl transition-all shadow-sm ${
+                observation.trim() && !submitting
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md cursor-pointer'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+              }`}
+            >
+              <Plus className="w-4.5 h-4.5" />
+            </button>
+          </div>
+        </form>
+      )}
+
 
       {/* Línea de tiempo / Listado */}
       {milestones.length === 0 ? (

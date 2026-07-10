@@ -236,9 +236,9 @@ export const DashboardGeneral: React.FC = () => {
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider text-[10px] font-bold">
                   <th className="py-3 px-2">Cliente</th>
-                  <th className="py-3 px-2">RUT</th>
+                  <th className="py-3 px-2 hidden sm:table-cell">RUT</th>
                   <th className="py-3 px-2">Etapa del Proceso</th>
-                  <th className="py-3 px-2">Última Actualización</th>
+                  <th className="py-3 px-2 hidden md:table-cell">Última Actualización</th>
                   <th className="py-3 px-2 text-right">Acción</th>
                 </tr>
               </thead>
@@ -254,7 +254,7 @@ export const DashboardGeneral: React.FC = () => {
                           <span className="text-[10px] text-slate-400 mt-0.5">{client.personalData.email}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-2 font-mono text-xs text-slate-500">{client.personalData.rut}</td>
+                      <td className="py-4 px-2 font-mono text-xs text-slate-500 hidden sm:table-cell">{client.personalData.rut}</td>
                       <td className="py-4 px-2">
                         <span className={`inline-flex px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border ${
                           stage === 'entrega' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
@@ -265,7 +265,7 @@ export const DashboardGeneral: React.FC = () => {
                           {STAGE_LABELS[stage] || stage}
                         </span>
                       </td>
-                      <td className="py-4 px-2 text-xs text-slate-400">
+                      <td className="py-4 px-2 text-xs text-slate-400 hidden md:table-cell">
                         {client.updatedAt ? new Date(client.updatedAt.seconds * 1000).toLocaleString() : 'Cargando...'}
                       </td>
                       <td className="py-4 px-2 text-right">

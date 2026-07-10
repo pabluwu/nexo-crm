@@ -3,11 +3,29 @@ import { API_BASE_URL } from '../config';
 
 // Helper genérico para peticiones HTTP
 const request = async (path: string, method: string = 'GET', body?: any) => {
+  // Obtener el correo del usuario logueado desde localStorage
+  const savedUserStr = localStorage.getItem('nexoprop_user');
+  let userEmail = '';
+  if (savedUserStr) {
+    try {
+      const u = JSON.parse(savedUserStr);
+      userEmail = u.email || '';
+    } catch (e) {
+      console.warn('No se pudo decodificar el usuario guardado:', e);
+    }
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (userEmail) {
+    headers['x-user-email'] = userEmail;
+  }
+
   const options: RequestInit = {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
   };
 
   if (body) {
@@ -15,6 +33,7 @@ const request = async (path: string, method: string = 'GET', body?: any) => {
   }
 
   const res = await fetch(`${API_BASE_URL}${path}`, options);
+
   if (!res.ok) {
     const errText = await res.text();
     throw new Error(errText || `Http error: ${res.status}`);

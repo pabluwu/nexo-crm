@@ -1,18 +1,36 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+
 import { DatabaseService } from './database.service';
+import { GoogleService } from './google.service';
+import * as fs from 'fs';
+
 
 @Injectable()
 export class AppService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly googleService: GoogleService
+  ) {}
+
 
   // 1. Obtener listado de clientes reconstruyendo estructura básica
-  async getClientsList() {
+  async getClientsList(userEmail?: string) {
+    if (userEmail) {
+      const users = await this.db.query('SELECT role FROM users WHERE email = ?', [userEmail]);
+      if (users.length > 0 && users[0].role === 'Broker') {
+        const clients = await this.db.query(
+          'SELECT * FROM clients WHERE created_by = ? ORDER BY updated_at DESC',
+          [userEmail]
+        );
+        return clients.map(c => this.formatClientBasic(c));
+      }
+    }
     const clients = await this.db.query('SELECT * FROM clients ORDER BY updated_at DESC');
     return clients.map(c => this.formatClientBasic(c));
   }
 
   // 2. Obtener detalle completo de un cliente (evaluaciones, hitos, documentos, etapas) por ID
-  async getClient(id: number) {
+  async getClient(id: number, userEmail?: string) {
     const clients = await this.db.query('SELECT * FROM clients WHERE id = ?', [id]);
     
     if (clients.length === 0) {
@@ -20,7 +38,17 @@ export class AppService {
     }
 
     const client = clients[0];
+
+    // Validar si el usuario es Broker y si tiene acceso a este expediente
+    if (userEmail) {
+      const users = await this.db.query('SELECT role FROM users WHERE email = ?', [userEmail]);
+      if (users.length > 0 && users[0].role === 'Broker' && client.created_by !== userEmail) {
+        throw new ForbiddenException(`No tienes permisos para acceder a este expediente.`);
+      }
+    }
+
     const clientId = client.id;
+
 
     // Obtener documentos cargados
     const docs = await this.db.query('SELECT * FROM client_documents WHERE client_id = ?', [clientId]);
@@ -106,14 +134,48 @@ export class AppService {
   }
 
   // 5. Cargar documento (Multer integration) por ID
-  async saveClientDocument(id: number, stage: string, fileType: string, file: any) {
-    const clients = await this.db.query('SELECT id FROM clients WHERE id = ?', [id]);
+  async saveClientDocument(id: number, stage: string, fileType: string, file: any, userEmail?: string) {
+    const clients = await this.db.query('SELECT id, first_name, last_name FROM clients WHERE id = ?', [id]);
     if (clients.length === 0) {
       throw new NotFoundException(`Expediente con ID ${id} no encontrado`);
     }
 
-    const clientId = clients[0].id;
+    const client = clients[0];
+    const clientId = client.id;
+    const clientName = `${client.first_name} ${client.last_name}`.trim();
     const fileUrl = `/uploads/clientes/${id}/${stage}/${file.filename}`;
+
+    let driveFileId: string | null = null;
+    let driveWebViewUrl: string | null = null;
+
+    // Si viene el correo del usuario, buscar tokens de Google Drive
+    if (userEmail) {
+      const users = await this.db.query(
+        'SELECT google_access_token, google_refresh_token FROM users WHERE email = ?',
+        [userEmail]
+      );
+      if (users.length > 0 && users[0].google_access_token) {
+        const user = users[0];
+        try {
+          const fileBuffer = fs.readFileSync(file.path);
+          const driveResult = await this.googleService.uploadFile(
+            clientName,
+            file.originalname,
+            fileBuffer,
+            file.mimetype || 'application/octet-stream',
+            {
+              access_token: user.google_access_token,
+              refresh_token: user.google_refresh_token,
+            }
+          );
+          
+          driveFileId = driveResult.driveFileId;
+          driveWebViewUrl = driveResult.driveWebViewUrl;
+        } catch (driveErr) {
+          console.error('Error al subir archivo a Google Drive:', driveErr);
+        }
+      }
+    }
 
     // Si es un campo único de documento (ej. informeCmf), eliminar el anterior de la base de datos
     const uniqueFields = ['fichaClienteUrl', 'fotoCarnetUrl', 'comprobanteReservaUrl', 'informeCmf', 'cotizacionesAfp', 'certificadoTitulo', 'cotizacionInmobiliariaUrl', 'approvedCreditDocumentUrl', 'promesaFirmadaUrl', 'escrituraFirmadaUrl'];
@@ -126,13 +188,20 @@ export class AppService {
     }
 
     await this.db.query(
-      `INSERT INTO client_documents (client_id, stage, file_type, file_name, file_url)
-       VALUES (?, ?, ?, ?, ?)`,
-      [clientId, stage, fileType, file.originalname, fileUrl]
+      `INSERT INTO client_documents (client_id, stage, file_type, file_name, file_url, drive_file_id, drive_web_view_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [clientId, stage, fileType, file.originalname, fileUrl, driveFileId, driveWebViewUrl]
     );
 
-    return { success: true, url: fileUrl, fileName: file.originalname };
+    return { 
+      success: true, 
+      url: driveWebViewUrl || fileUrl, 
+      fileName: file.originalname,
+      driveFileId,
+      driveWebViewUrl
+    };
   }
+
 
   // 6. Limpiar carpeta de etapa 2 por ID
   async clearDocumentationStage(id: number) {
@@ -280,7 +349,11 @@ export class AppService {
   private assembleClientDetail(c: any, docs: any[], evals: any[], histories: any[], milestones: any[], stagesHistory: any[]) {
     // 1. Formatear la reserva
     const docReserva = docs.filter(d => d.stage === 'reserva' || d.stage === 'etapa_1_reserva');
-    const getDocUrl = (type: string) => docReserva.find(d => d.file_type === type)?.file_url || '';
+    const getDocUrl = (type: string) => {
+      const fd = docReserva.find(d => d.file_type === type);
+      if (!fd) return '';
+      return fd.drive_web_view_url || fd.file_url;
+    };
     
     const reservaStage = {
       fichaClienteUrl: getDocUrl('fichaClienteUrl'),
@@ -294,13 +367,13 @@ export class AppService {
     const docAcreditacion = docs.filter(d => d.stage === 'documentacion' || d.stage.startsWith('etapa_2_documentacion'));
     const getDocDetail = (type: string) => {
       const fd = docAcreditacion.find(d => d.file_type === type);
-      return fd ? { url: fd.file_url, fileName: fd.file_name, uploadedAt: this.toTimestamp(fd.uploaded_at) } : undefined;
+      return fd ? { url: fd.drive_web_view_url || fd.file_url, fileName: fd.file_name, uploadedAt: this.toTimestamp(fd.uploaded_at) } : undefined;
     };
 
     const liquidaciones = docAcreditacion
       .filter(d => d.file_type === 'liquidacion')
       .map(d => ({
-        url: d.file_url,
+        url: d.drive_web_view_url || d.file_url,
         fileName: d.file_name,
         uploadedAt: this.toTimestamp(d.uploaded_at)
       }));
@@ -325,7 +398,9 @@ export class AppService {
         entrega: ['entrega', 'etapa_10_entrega']
       };
       const possibleStages = stageMappings[stageName] || [stageName];
-      return docs.find(d => possibleStages.includes(d.stage) && d.file_type === type)?.file_url || '';
+      const fd = docs.find(d => possibleStages.includes(d.stage) && d.file_type === type);
+      if (!fd) return '';
+      return fd.drive_web_view_url || fd.file_url;
     };
     
     const promesaSolicitud = {
@@ -514,4 +589,79 @@ export class AppService {
       avgStageDurations
     };
   }
+
+  // Métodos auxiliares para manejo de usuarios
+  async getUserByEmail(email: string) {
+    return this.db.query('SELECT * FROM users WHERE email = ?', [email]);
+  }
+
+  async createUser(user: {
+    email: string;
+    name: string;
+    picture: string;
+    role: string;
+    googleId: string;
+    accessToken: string | null;
+    refreshToken: string | null;
+    expiryDate: Date | null;
+  }) {
+    return this.db.query(
+      `INSERT INTO users (email, name, picture, role, google_id, google_access_token, google_refresh_token, google_token_expiry)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        user.email,
+        user.name,
+        user.picture,
+        user.role,
+        user.googleId,
+        user.accessToken,
+        user.refreshToken,
+        user.expiryDate
+      ]
+    );
+  }
+
+  async updateUserTokens(email: string, updates: {
+    name: string;
+    picture: string;
+    googleId: string;
+    accessToken: string | null;
+    refreshToken: string | null;
+    expiryDate: Date | null;
+  }) {
+    // Si los tokens de Google son nulos, no sobreescribir si ya existían (mantener sesión de Drive si fue mock/login local)
+    if (updates.accessToken) {
+      return this.db.query(
+        `UPDATE users 
+         SET name = ?, picture = ?, google_id = ?, google_access_token = ?, google_refresh_token = ?, google_token_expiry = ?
+         WHERE email = ?`,
+        [
+          updates.name,
+          updates.picture,
+          updates.googleId,
+          updates.accessToken,
+          updates.refreshToken,
+          updates.expiryDate,
+          email
+        ]
+      );
+    } else {
+      return this.db.query(
+        `UPDATE users 
+         SET name = ?, picture = ?
+         WHERE email = ?`,
+        [updates.name, updates.picture, email]
+      );
+    }
+  }
+
+  async updateUserRole(email: string, role: string) {
+    return this.db.query('UPDATE users SET role = ? WHERE email = ?', [role, email]);
+  }
+
+  async getUserRole(email: string): Promise<string | null> {
+    const users = await this.getUserByEmail(email);
+    return users.length > 0 ? users[0].role : null;
+  }
 }
+

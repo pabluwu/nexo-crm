@@ -24,8 +24,25 @@ export const uploadClientFile = (
     // Endpoint de NestJS por ID dinámico
     const uploadUrl = `${API_BASE_URL}/clients/${clientId}/upload?stage=${stageFolder}&fileType=${fileType}`;
 
+    // Obtener correo del usuario logueado desde localStorage
+    const savedUserStr = localStorage.getItem('nexoprop_user');
+    let userEmail = '';
+    if (savedUserStr) {
+      try {
+        const u = JSON.parse(savedUserStr);
+        userEmail = u.email || '';
+      } catch {
+        // Ignorar
+      }
+    }
+
     const xhr = new XMLHttpRequest();
     xhr.open('POST', uploadUrl, true);
+
+    if (userEmail) {
+      xhr.setRequestHeader('x-user-email', userEmail);
+    }
+
 
     // Callback de progreso utilizando XMLHttpRequest
     if (onProgress) {
@@ -43,7 +60,7 @@ export const uploadClientFile = (
           const response = JSON.parse(xhr.responseText);
           window.dispatchEvent(new Event('db-update'));
           resolve(response.url);
-        } catch (err) {
+        } catch {
           reject(new Error('No se pudo decodificar la respuesta del servidor.'));
         }
       } else {

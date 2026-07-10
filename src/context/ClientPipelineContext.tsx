@@ -56,8 +56,23 @@ export const ClientPipelineProvider: React.FC<{ children: React.ReactNode }> = (
 
   // Métodos de consulta de la API
   const fetchList = async () => {
+    // Obtener correo del usuario desde localStorage
+    const savedUserStr = localStorage.getItem('nexoprop_user');
+    let userEmail = '';
+    if (savedUserStr) {
+      try {
+        const u = JSON.parse(savedUserStr);
+        userEmail = u.email || '';
+      } catch {
+        // Ignorar
+      }
+    }
+
     try {
-      const res = await fetch(`${API_BASE_URL}/clients`);
+      const headers: Record<string, string> = {};
+      if (userEmail) headers['x-user-email'] = userEmail;
+
+      const res = await fetch(`${API_BASE_URL}/clients`, { headers });
       if (res.ok) {
         const list = await res.json();
         setClientsList(mapUrls(list));
@@ -72,11 +87,26 @@ export const ClientPipelineProvider: React.FC<{ children: React.ReactNode }> = (
   };
 
   const fetchDetail = async (idStr: string) => {
+    // Obtener correo del usuario desde localStorage
+    const savedUserStr = localStorage.getItem('nexoprop_user');
+    let userEmail = '';
+    if (savedUserStr) {
+      try {
+        const u = JSON.parse(savedUserStr);
+        userEmail = u.email || '';
+      } catch {
+        // Ignorar
+      }
+    }
+
     try {
       const id = parseInt(idStr, 10);
       if (isNaN(id)) return;
 
-      const res = await fetch(`${API_BASE_URL}/clients/${id}`);
+      const headers: Record<string, string> = {};
+      if (userEmail) headers['x-user-email'] = userEmail;
+
+      const res = await fetch(`${API_BASE_URL}/clients/${id}`, { headers });
       
       if (res.status === 404) {
         setClient(null);
@@ -101,6 +131,7 @@ export const ClientPipelineProvider: React.FC<{ children: React.ReactNode }> = (
       console.error('Error al consultar detalle de cliente:', err);
     }
   };
+
 
   // 1. Sincronización inicial y sondeo lento de la lista (cada 10s)
   useEffect(() => {

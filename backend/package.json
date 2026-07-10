@@ -14,7 +14,9 @@
     "@nestjs/platform-express": "^10.3.0",
     "mysql2": "^3.9.1",
     "reflect-metadata": "^0.2.1",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "googleapis": "^140.0.0"
+
   },
   "devDependencies": {
     "@types/node": "^20.11.10",
