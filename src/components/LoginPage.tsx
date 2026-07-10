@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Building2, ShieldAlert, LogIn, AlertCircle } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { login, googleClientId } = useAuth();
+  const { login, googleClientId, user } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isRealAuthAvailable, setIsRealAuthAvailable] = useState(false);
@@ -35,7 +36,6 @@ export const LoginPage: React.FC = () => {
 
   useEffect(() => {
     // 1. Verificar si hay un Client ID válido configurado
-    console.log(googleClientId)
     if (googleClientId && googleClientId !== 'your-google-client-id.apps.googleusercontent.com') {
       setIsRealAuthAvailable(true);
     }
@@ -59,6 +59,10 @@ export const LoginPage: React.FC = () => {
       setError(decodeURIComponent(errorParam));
     }
   }, [googleClientId]);
+
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
 
   // Manejar el inicio de sesión real con Google (Redirect Flow)
   const handleGoogleLoginReal = () => {

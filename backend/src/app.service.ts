@@ -15,15 +15,20 @@ export class AppService {
 
   // 1. Obtener listado de clientes reconstruyendo estructura básica
   async getClientsList(userEmail?: string) {
-    if (userEmail) {
-      const users = await this.db.query('SELECT role FROM users WHERE email = ?', [userEmail]);
-      if (users.length > 0 && users[0].role === 'Broker') {
-        const clients = await this.db.query(
-          'SELECT * FROM clients WHERE created_by = ? ORDER BY updated_at DESC',
-          [userEmail]
-        );
-        return clients.map(c => this.formatClientBasic(c));
-      }
+    if (!userEmail) {
+      throw new ForbiddenException('Identificación de usuario requerida. Inicie sesión.');
+    }
+    const users = await this.db.query('SELECT role FROM users WHERE email = ?', [userEmail]);
+    if (users.length === 0) {
+      throw new ForbiddenException('Usuario no registrado en NexoProp.');
+    }
+
+    if (users[0].role === 'Broker') {
+      const clients = await this.db.query(
+        'SELECT * FROM clients WHERE created_by = ? ORDER BY updated_at DESC',
+        [userEmail]
+      );
+      return clients.map(c => this.formatClientBasic(c));
     }
     const clients = await this.db.query('SELECT * FROM clients ORDER BY updated_at DESC');
     return clients.map(c => this.formatClientBasic(c));
@@ -31,6 +36,14 @@ export class AppService {
 
   // 2. Obtener detalle completo de un cliente (evaluaciones, hitos, documentos, etapas) por ID
   async getClient(id: number, userEmail?: string) {
+    if (!userEmail) {
+      throw new ForbiddenException('Identificación de usuario requerida. Inicie sesión.');
+    }
+    const users = await this.db.query('SELECT role FROM users WHERE email = ?', [userEmail]);
+    if (users.length === 0) {
+      throw new ForbiddenException('Usuario no registrado en NexoProp.');
+    }
+
     const clients = await this.db.query('SELECT * FROM clients WHERE id = ?', [id]);
     
     if (clients.length === 0) {
@@ -40,11 +53,8 @@ export class AppService {
     const client = clients[0];
 
     // Validar si el usuario es Broker y si tiene acceso a este expediente
-    if (userEmail) {
-      const users = await this.db.query('SELECT role FROM users WHERE email = ?', [userEmail]);
-      if (users.length > 0 && users[0].role === 'Broker' && client.created_by !== userEmail) {
-        throw new ForbiddenException(`No tienes permisos para acceder a este expediente.`);
-      }
+    if (users[0].role === 'Broker' && client.created_by !== userEmail) {
+      throw new ForbiddenException(`No tienes permisos para acceder a este expediente.`);
     }
 
     const clientId = client.id;

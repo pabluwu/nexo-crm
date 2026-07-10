@@ -33,14 +33,15 @@ export class AppController {
     return this.appService.getClientsList(userEmail);
   }
 
-  // 1.5. Obtener resumen de métricas analíticas
+  // 1.5. Obtener resumen de métricas analíticas (Sólo Admin)
   @Get('analytics/summary')
   async getAnalyticsSummary(@Headers('x-user-email') userEmail: string) {
-    if (userEmail) {
-      const role = await this.appService.getUserRole(userEmail);
-      if (role === 'Broker') {
-        throw new ForbiddenException('Los Brokers no tienen acceso al panel de analíticas.');
-      }
+    if (!userEmail) {
+      throw new ForbiddenException('Identificación de usuario requerida.');
+    }
+    const role = await this.appService.getUserRole(userEmail);
+    if (role !== 'Administrador') {
+      throw new ForbiddenException('Los Brokers no tienen acceso al panel de analíticas.');
     }
     return this.appService.getAnalyticsSummary();
   }
@@ -62,9 +63,20 @@ export class AppController {
     return this.appService.getClient(parseInt(id, 10), userEmail);
   }
 
-  // 4. Actualizar etapa del pipeline
+  // 4. Actualizar etapa del pipeline (Sólo Admin)
   @Put('clients/:id/state')
-  async updateState(@Param('id') id: string, @Body('pipelineState') pipelineState: string) {
+  async updateState(
+    @Param('id') id: string, 
+    @Body('pipelineState') pipelineState: string,
+    @Headers('x-user-email') userEmail: string
+  ) {
+    if (!userEmail) {
+      throw new ForbiddenException('Identificación de usuario requerida.');
+    }
+    const role = await this.appService.getUserRole(userEmail);
+    if (role !== 'Administrador') {
+      throw new ForbiddenException('Operación denegada. Solo los Administradores pueden actualizar el estado del pipeline.');
+    }
     if (!pipelineState) throw new BadRequestException('El estado pipelineState es requerido');
     return this.appService.updateClientState(parseInt(id, 10), pipelineState);
   }
@@ -104,44 +116,62 @@ export class AppController {
   }
 
 
-  // 6. Limpiar etapa de documentación
+  // 6. Limpiar etapa de documentación (Sólo Admin)
   @Delete('clients/:id/documentation/clear')
-  async clearDocumentation(@Param('id') id: string) {
+  async clearDocumentation(@Param('id') id: string, @Headers('x-user-email') userEmail: string) {
+    await this.enforceAdmin(userEmail);
     return this.appService.clearDocumentationStage(parseInt(id, 10));
   }
 
-  // 7. Cierre / Cancelación de expediente
+  // 7. Cierre / Cancelación de expediente (Sólo Admin)
   @Post('clients/:id/cancel')
-  async cancelFolder(@Param('id') id: string, @Body() body: any) {
+  async cancelFolder(@Param('id') id: string, @Body() body: any, @Headers('x-user-email') userEmail: string) {
+    await this.enforceAdmin(userEmail);
     return this.appService.cancelClientFolder(parseInt(id, 10), body);
   }
 
-  // 8. Crear/Actualizar evaluación de crédito
+  // 8. Crear/Actualizar evaluación de crédito (Sólo Admin)
   @Post('clients/:id/evaluations')
-  async setEvaluation(@Param('id') id: string, @Body() body: any) {
+  async setEvaluation(@Param('id') id: string, @Body() body: any, @Headers('x-user-email') userEmail: string) {
+    await this.enforceAdmin(userEmail);
     return this.appService.setEvaluation(parseInt(id, 10), body);
   }
 
-  // 9. Cargar documento adicional a evaluación
+  // 9. Cargar documento adicional a evaluación (Sólo Admin)
   @Post('clients/:id/evaluations/:entityId/history')
   async addEvaluationHistory(
     @Param('id') id: string,
     @Param('entityId') entityId: string,
-    @Body() body: any
+    @Body() body: any,
+    @Headers('x-user-email') userEmail: string
   ) {
+    await this.enforceAdmin(userEmail);
     return this.appService.addEvaluationHistory(parseInt(id, 10), entityId, body);
   }
 
-  // 10. Designar aprobador y avanzar
+  // 10. Designar aprobador y avanzar (Sólo Admin)
   @Post('clients/:id/evaluations/approve')
-  async approveCredit(@Param('id') id: string, @Body() body: any) {
+  async approveCredit(@Param('id') id: string, @Body() body: any, @Headers('x-user-email') userEmail: string) {
+    await this.enforceAdmin(userEmail);
     return this.appService.selectApprovedEntity(parseInt(id, 10), body);
   }
 
-  // 11. Agregar hito
+  // 11. Agregar hito (Sólo Admin)
   @Post('clients/:id/milestones')
-  async addMilestone(@Param('id') id: string, @Body() body: any) {
+  async addMilestone(@Param('id') id: string, @Body() body: any, @Headers('x-user-email') userEmail: string) {
+    await this.enforceAdmin(userEmail);
     return this.appService.addMilestone(parseInt(id, 10), body);
+  }
+
+  // Helper para obligar a rol Administrador
+  private async enforceAdmin(userEmail: string) {
+    if (!userEmail) {
+      throw new ForbiddenException('Identificación de usuario requerida.');
+    }
+    const role = await this.appService.getUserRole(userEmail);
+    if (role !== 'Administrador') {
+      throw new ForbiddenException('Operación denegada. Se requiere el rol de Administrador.');
+    }
   }
 
   // 12. Login/Autenticación con Google OAuth 2.0 (Gmail / Mock)

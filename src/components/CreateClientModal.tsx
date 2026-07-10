@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createClient } from '../services/db';
+import { useAuth } from '../context/AuthContext';
 import { X, User, ShieldAlert } from 'lucide-react';
 
 interface CreateClientModalProps {
@@ -7,6 +8,7 @@ interface CreateClientModalProps {
 }
 
 export const CreateClientModal: React.FC<CreateClientModalProps> = ({ onClose }) => {
+  const { user } = useAuth();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [rut, setRut] = useState('');
@@ -47,7 +49,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({ onClose })
           phone: phone.trim(),
           address: address.trim()
         },
-        'mock-executive-uid'
+        user?.email || 'SYSTEM_USER'
       );
 
       // Cerrar modal
