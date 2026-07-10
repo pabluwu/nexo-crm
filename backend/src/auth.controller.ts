@@ -20,8 +20,8 @@ export class AuthController {
     }
 
     try {
-      // Intercambiar código usando el redirect_uri exacto
-      const tokens = await this.googleService.getTokensFromCodeWithUri(code, 'http://localhost:3000/auth/google/callback');
+      const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/auth/google/callback';
+      const tokens = await this.googleService.getTokensFromCodeWithUri(code, redirectUri);
       const accessToken = tokens.access_token || null;
       const refreshToken = tokens.refresh_token || null;
       const expiryDate = tokens.expiry_date ? new Date(tokens.expiry_date) : null;
@@ -71,14 +71,15 @@ export class AuthController {
         user = updatedUsers[0];
       }
 
-      // Redireccionar al frontend local
-      const frontendUrl = 'http://localhost:5173';
+      // Redireccionar al frontend
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       const userStr = Buffer.from(JSON.stringify(user)).toString('base64');
       
       return res.redirect(`${frontendUrl}/login?session=${userStr}`);
     } catch (err: any) {
       console.error('Error en callback de autenticación Google:', err);
-      return res.redirect(`http://localhost:5173/login?error=${encodeURIComponent(err.message || 'Error desconocido')}`);
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(err.message || 'Error desconocido')}`);
     }
   }
 }

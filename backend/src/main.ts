@@ -8,9 +8,14 @@ import * as fs from 'fs';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   
-  // Habilitar CORS para que el frontend (puerto 5173) pueda consumir la API
+  const corsOrigins = process.env.CORS_ORIGINS || '*';
+  const parsedOrigins = corsOrigins.includes(',') 
+    ? corsOrigins.split(',').map(o => o.trim()) 
+    : corsOrigins;
+
+  // Habilitar CORS para que el frontend pueda consumir la API
   app.enableCors({
-    origin: 'https://test-nexo.acuerdalo.cl', // Permitir todos los orígenes en local
+    origin: parsedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
