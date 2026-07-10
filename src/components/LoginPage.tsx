@@ -69,7 +69,7 @@ export const LoginPage: React.FC = () => {
     setError(null);
     setLoading(true);
 
-    const redirectUri = 'http://localhost:3000/auth/google/callback';
+    const redirectUri = 'https://api-michelle.acuerdalo.cl/auth/google/callback';
     const scopes = [
       'openid',
       'email',
