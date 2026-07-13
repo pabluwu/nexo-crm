@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 import { 
   BarChart3, Clock, AlertTriangle, CheckCircle2, 
   ArrowLeft, Calendar, AlertOctagon, TrendingUp
 } from 'lucide-react';
+
 
 interface StageClosure {
   stage: string;
@@ -55,30 +57,51 @@ const formatDuration = (seconds: number | null): string => {
 
 export const AnalyticsDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
+      // Obtener correo del usuario desde context o localStorage
+      let email = user?.email || '';
+      if (!email) {
+        const savedUserStr = localStorage.getItem('nexoprop_user');
+        if (savedUserStr) {
+          try {
+            const u = JSON.parse(savedUserStr);
+            email = u.email || '';
+          } catch {}
+        }
+      }
+
       try {
-        const res = await fetch(`${API_BASE_URL}/analytics/summary`);
+        const headers: Record<string, string> = {};
+        if (email) {
+          headers['x-user-email'] = email;
+        }
+
+        const res = await fetch(`${API_BASE_URL}/analytics/summary`, { headers });
         if (res.ok) {
           const json = await res.json();
           setData(json);
         } else {
+          if (res.status === 403) {
+            throw new Error('No tienes permisos de Administrador para acceder al panel de analíticas.');
+          }
           throw new Error('Respuesta de API incorrecta');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error al cargar analíticas:', err);
-        setError('No se pudo establecer conexión con el servicio de análisis de base de datos.');
+        setError(err.message || 'No se pudo establecer conexión con el servicio de análisis de base de datos.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchAnalytics();
-  }, []);
+  }, [user]);
 
   if (loading) {
     return (
